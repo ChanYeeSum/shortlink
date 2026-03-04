@@ -1,114 +1,78 @@
 # ShortLink - 短链接服务
 
-一个基于 Node.js + Express + SQLite 构建的短链接生成服务，支持 GitHub Actions CI/CD 自动部署。
+基于 GitHub Pages + Actions 的纯静态短链接服务，无需服务器。
 
 ## 功能特性
 
-- 生成短链接：将长链接转换为简短的链接
+- 短链接生成：将长链接转换为简短链接
 - 链接跳转：访问短链接自动跳转到原始链接
-- 点击统计：记录每个链接的访问次数
-- 现代界面：响应式设计，支持移动端
-- CI/CD：GitHub Actions 自动化构建和部署
+- 数据持久化：链接数据存储在 JSON 文件中，提交到仓库
+- 自动化：通过 GitHub Issue + Actions 自动创建短链接
 
 ## 技术栈
 
-- **后端**: Node.js + Express
-- **数据库**: SQLite (better-sqlite3)
 - **前端**: 原生 HTML/CSS/JavaScript
-- **CI/CD**: GitHub Actions
+- **部署**: GitHub Pages
+- **自动化**: GitHub Actions + Issues
 
 ## 项目结构
 
 ```
 shortlink/
-├── backend/
-│   └── server.js          # Express 服务器
-├── frontend/
-│   ├── index.html         # 前端页面
-│   ├── style.css          # 样式文件
-│   └── script.js          # 前端逻辑
+├── docs/
+│   ├── index.html         # 首页
+│   ├── 404.html           # 短链接跳转处理
+│   ├── style.css          # 样式
+│   └── data/
+│       └── links.json     # 链接数据
 ├── .github/
 │   └── workflows/
 │       └── ci.yml         # GitHub Actions 工作流
-├── package.json           # 项目配置
 └── README.md
 ```
 
-## 本地运行
-
-### 1. 安装依赖
-
-```bash
-npm install
-```
-
-### 2. 启动服务
-
-```bash
-npm start
-```
-
-### 3. 访问应用
-
-打开浏览器访问: http://localhost:3000
-
-## 环境变量
-
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `PORT` | 服务端口 | 3000 |
-| `BASE_URL` | 服务基础URL | http://localhost:3000 |
-
-## API 接口
+## 使用方法
 
 ### 创建短链接
 
-```http
-POST /api/shorten
-Content-Type: application/json
+1. 访问首页：https://chanyeesum.github.io/shortlink/
+2. 填写原始链接 URL 和可选的短链接代码
+3. 点击"创建短链接"，跳转到 GitHub Issue 页面
+4. 提交 Issue（会自动添加 `shortlink` 标签）
+5. GitHub Actions 自动处理 Issue 并更新链接数据
+6. 等待几秒后即可使用短链接
 
-{
-  "url": "https://example.com/very/long/url"
-}
+### 访问短链接
+
+访问 `https://chanyeesum.github.io/shortlink/{code}` 即可跳转到原始链接。
+
+## 配置说明
+
+### 1. 启用 GitHub Pages
+
+进入仓库 Settings → Pages → Source 选择 `GitHub Actions`
+
+### 2. 创建标签
+
+在 Issues 中创建 `shortlink` 标签
+
+### 3. 自定义域名（可选）
+
+在 `docs/` 目录添加 `CNAME` 文件，内容为你的域名。
+
+## 工作原理
+
+1. **静态部署**：前端代码部署到 GitHub Pages
+2. **404 处理**：GitHub Pages 在找不到文件时显示 404.html，JS 代码解析路径并从 links.json 查找对应链接跳转
+3. **Issue 自动化**：用户通过提交 Issue 创建短链接，GitHub Actions 解析 Issue 内容并更新 links.json
+
+## 本地预览
+
+直接用浏览器打开 `docs/index.html` 或使用本地服务器：
+
+```bash
+npx serve docs
 ```
-
-响应:
-```json
-{
-  "shortCode": "abc123",
-  "shortUrl": "http://localhost:3000/abc123",
-  "originalUrl": "https://example.com/very/long/url"
-}
-```
-
-### 获取链接统计
-
-```http
-GET /api/stats
-```
-
-### 健康检查
-
-```http
-GET /api/health
-```
-
-## GitHub Actions CI/CD
-
-项目配置了完整的 GitHub Actions 工作流：
-
-1. **Test**: 代码推送后自动运行测试
-2. **Build**: 构建部署包
-3. **Deploy**: 生成部署说明（可扩展为自动部署）
-
-### 部署到生产环境
-
-你可以将构建产物部署到任何支持 Node.js 的平台：
-
-- **Vercel**: 导入 GitHub 仓库自动部署
-- **Railway**: 连接 GitHub 仓库
-- **Render**: 创建新的 Web Service
-- **传统服务器**: 下载构建产物，运行 `npm start`
 
 ## 许可证
 

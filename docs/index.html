@@ -10,13 +10,13 @@
   <div class="container">
     <header>
       <h1>🔗 ShortLink</h1>
-      <p>简单、快速的短链接服务（静态版）</p>
+      <p>简单、快速的短链接服务</p>
     </header>
 
     <main>
       <div class="card">
-        <h2>添加短链接</h2>
-        <p class="hint">通过提交 Issue 自动创建短链接</p>
+        <h2>创建短链接</h2>
+        <p class="hint">提交后短链接仅显示一次，请立即保存</p>
         <form id="shortenForm">
           <div class="form-group">
             <label for="urlInput">原始链接 URL</label>
@@ -26,25 +26,28 @@
             <label for="codeInput">短链接代码（可选，留空自动生成）</label>
             <input type="text" id="codeInput" placeholder="mylink" pattern="[a-zA-Z0-9-_]+">
           </div>
-          <div class="form-group checkbox-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="privateInput">
-              <span class="checkbox-text">🔒 私有链接（不在列表中显示，但可直接访问）</span>
-            </label>
-          </div>
           <button type="submit" class="btn-primary">创建短链接</button>
         </form>
+        
         <div id="result" class="result hidden">
-          <p>✅ 请在 GitHub Issue 中确认创建</p>
-          <a id="issueLink" href="#" target="_blank" class="btn-link">打开 Issue 页面</a>
+          <div class="result-icon">✅</div>
+          <p class="result-title">短链接创建成功！</p>
+          <p class="result-hint">⚠️ 此链接仅显示一次，请立即复制保存</p>
+          <div class="short-link-box">
+            <input type="text" id="shortUrlInput" readonly>
+            <button id="copyBtn" class="btn-copy">复制</button>
+          </div>
+          <a id="createAnother" href="#" class="btn-link">创建新链接</a>
         </div>
       </div>
 
-      <div class="card">
-        <h2>📊 公开链接</h2>
-        <div id="linksContainer">
-          <p class="loading">加载中...</p>
-        </div>
+      <div class="card info-card">
+        <h3>📖 使用说明</h3>
+        <ul>
+          <li>创建成功后，短链接<strong>仅显示一次</strong></li>
+          <li>请立即复制保存，关闭页面后将无法再次查看</li>
+          <li>短链接永久有效，可直接访问跳转</li>
+        </ul>
       </div>
     </main>
 
@@ -57,65 +60,6 @@
     const GITHUB_REPO = 'ChanYeeSum/shortlink';
     const BASE_URL = `https://${GITHUB_REPO.split('/')[0].toLowerCase()}.github.io/${GITHUB_REPO.split('/')[1]}`;
     
-    // 加载链接数据
-    async function loadLinks() {
-      try {
-        const response = await fetch('data/links.json?t=' + Date.now());
-        const data = await response.json();
-        // 只显示公开链接
-        const publicLinks = (data.links || []).filter(link => !link.private);
-        renderLinks(publicLinks);
-      } catch (err) {
-        document.getElementById('linksContainer').innerHTML = 
-          '<p class="error">加载失败，请刷新重试</p>';
-      }
-    }
-    
-    // 渲染链接列表
-    function renderLinks(links) {
-      const container = document.getElementById('linksContainer');
-      
-      if (links.length === 0) {
-        container.innerHTML = '<p class="empty">暂无公开链接</p>';
-        return;
-      }
-      
-      const html = `
-        <table>
-          <thead>
-            <tr>
-              <th>短链接</th>
-              <th>原始链接</th>
-              <th>创建时间</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${links.map(link => `
-              <tr>
-                <td><a href="${BASE_URL}/${link.code}" target="_blank">/${link.code}</a></td>
-                <td><a href="${link.url}" target="_blank" title="${link.url}">${truncate(link.url, 40)}</a></td>
-                <td>${formatDate(link.created_at)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-      
-      container.innerHTML = html;
-    }
-    
-    // 截断URL
-    function truncate(str, maxLen) {
-      if (str.length <= maxLen) return str;
-      return str.substring(0, maxLen) + '...';
-    }
-    
-    // 格式化日期
-    function formatDate(dateStr) {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('zh-CN');
-    }
-    
     // 生成短码
     function generateCode() {
       const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -126,13 +70,12 @@
       return code;
     }
     
-    // 表单提交 - 创建 Issue
+    // 表单提交
     document.getElementById('shortenForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
       const url = document.getElementById('urlInput').value.trim();
       let code = document.getElementById('codeInput').value.trim();
-      const isPrivate = document.getElementById('privateInput').checked;
       
       if (!code) {
         code = generateCode();
@@ -140,24 +83,52 @@
       
       // 创建 Issue 标题和内容
       const title = `[ShortLink] 添加短链接: ${code}`;
-      let body = `**短链接代码**: \`${code}\`\n**原始链接**: ${url}`;
-      
-      if (isPrivate) {
-        body += `\n**私有**: true`;
-      }
-      
-      body += `\n\n---\n此 Issue 将由 GitHub Actions 自动处理并关闭。`;
+      const body = `**短链接代码**: \`${code}\`\n**原始链接**: ${url}\n**私有**: true\n\n---\n此 Issue 将由 GitHub Actions 自动处理并关闭。`;
       
       // 构建 Issue URL
       const issueUrl = `https://github.com/${GITHUB_REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}&labels=shortlink`;
       
-      // 显示结果
+      // 显示短链接（仅一次）
+      const shortUrl = `${BASE_URL}/${code}`;
+      document.getElementById('shortUrlInput').value = shortUrl;
+      
+      // 隐藏表单，显示结果
+      document.getElementById('shortenForm').classList.add('hidden');
       document.getElementById('result').classList.remove('hidden');
-      document.getElementById('issueLink').href = issueUrl;
+      
+      // 自动提交 Issue（在新窗口）
+      window.open(issueUrl, '_blank');
     });
     
-    // 初始化
-    loadLinks();
+    // 复制链接
+    document.getElementById('copyBtn').addEventListener('click', async function() {
+      const input = document.getElementById('shortUrlInput');
+      try {
+        await navigator.clipboard.writeText(input.value);
+        this.textContent = '已复制';
+        this.classList.add('copied');
+        setTimeout(() => {
+          this.textContent = '复制';
+          this.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        input.select();
+        document.execCommand('copy');
+        this.textContent = '已复制';
+        setTimeout(() => {
+          this.textContent = '复制';
+        }, 2000);
+      }
+    });
+    
+    // 创建新链接
+    document.getElementById('createAnother').addEventListener('click', function(e) {
+      e.preventDefault();
+      document.getElementById('shortenForm').classList.remove('hidden');
+      document.getElementById('result').classList.add('hidden');
+      document.getElementById('urlInput').value = '';
+      document.getElementById('codeInput').value = '';
+    });
   </script>
 </body>
 </html>

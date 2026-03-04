@@ -42,6 +42,9 @@ jobs:
         # 提取原始链接
         URL=$(echo "$ISSUE_BODY" | grep -oP '\*\*原始链接\*\*:\s*\K.+' | xargs || echo "")
         
+        # 检查是否为私有链接
+        IS_PRIVATE=$(echo "$ISSUE_BODY" | grep -oP '\*\*私有\*\*:\s*\Ktrue' || echo "")
+        
         if [ -z "$CODE" ] || [ -z "$URL" ]; then
           echo "无法解析短链接代码或URL"
           exit 1
@@ -49,6 +52,7 @@ jobs:
         
         echo "短链接代码: $CODE"
         echo "原始链接: $URL"
+        echo "私有: ${IS_PRIVATE:-false}"
         
         # 更新 links.json
         cd docs/data
@@ -62,11 +66,14 @@ jobs:
             process.exit(0);
           }
           
-          data.links.unshift({
+          const newLink = {
             code: '$CODE',
             url: '$URL',
-            created_at: new Date().toISOString()
-          });
+            created_at: new Date().toISOString(),
+            private: '${IS_PRIVATE}' === 'true'
+          };
+          
+          data.links.unshift(newLink);
           
           fs.writeFileSync('links.json', JSON.stringify(data, null, 2));
           console.log('短链接添加成功');
@@ -129,5 +136,6 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 使用方法：" >> $GITHUB_STEP_SUMMARY
         echo "1. 访问首页，填写表单创建短链接" >> $GITHUB_STEP_SUMMARY
-        echo "2. 点击生成的 Issue 链接确认" >> $GITHUB_STEP_SUMMARY
-        echo "3. 等待自动部署完成即可使用" >> $GITHUB_STEP_SUMMARY
+        echo "2. 可勾选「私有链接」隐藏链接" >> $GITHUB_STEP_SUMMARY
+        echo "3. 点击生成的 Issue 链接确认" >> $GITHUB_STEP_SUMMARY
+        echo "4. 等待自动部署完成即可使用" >> $GITHUB_STEP_SUMMARY

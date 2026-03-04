@@ -26,6 +26,12 @@
             <label for="codeInput">短链接代码（可选，留空自动生成）</label>
             <input type="text" id="codeInput" placeholder="mylink" pattern="[a-zA-Z0-9-_]+">
           </div>
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="privateInput">
+              <span class="checkbox-text">🔒 私有链接（不在列表中显示，但可直接访问）</span>
+            </label>
+          </div>
           <button type="submit" class="btn-primary">创建短链接</button>
         </form>
         <div id="result" class="result hidden">
@@ -35,7 +41,7 @@
       </div>
 
       <div class="card">
-        <h2>📊 所有链接</h2>
+        <h2>📊 公开链接</h2>
         <div id="linksContainer">
           <p class="loading">加载中...</p>
         </div>
@@ -56,7 +62,9 @@
       try {
         const response = await fetch('data/links.json?t=' + Date.now());
         const data = await response.json();
-        renderLinks(data.links || []);
+        // 只显示公开链接
+        const publicLinks = (data.links || []).filter(link => !link.private);
+        renderLinks(publicLinks);
       } catch (err) {
         document.getElementById('linksContainer').innerHTML = 
           '<p class="error">加载失败，请刷新重试</p>';
@@ -68,7 +76,7 @@
       const container = document.getElementById('linksContainer');
       
       if (links.length === 0) {
-        container.innerHTML = '<p class="empty">暂无链接</p>';
+        container.innerHTML = '<p class="empty">暂无公开链接</p>';
         return;
       }
       
@@ -124,6 +132,7 @@
       
       const url = document.getElementById('urlInput').value.trim();
       let code = document.getElementById('codeInput').value.trim();
+      const isPrivate = document.getElementById('privateInput').checked;
       
       if (!code) {
         code = generateCode();
@@ -131,7 +140,13 @@
       
       // 创建 Issue 标题和内容
       const title = `[ShortLink] 添加短链接: ${code}`;
-      const body = `**短链接代码**: \`${code}\`\n**原始链接**: ${url}\n\n---\n此 Issue 将由 GitHub Actions 自动处理并关闭。`;
+      let body = `**短链接代码**: \`${code}\`\n**原始链接**: ${url}`;
+      
+      if (isPrivate) {
+        body += `\n**私有**: true`;
+      }
+      
+      body += `\n\n---\n此 Issue 将由 GitHub Actions 自动处理并关闭。`;
       
       // 构建 Issue URL
       const issueUrl = `https://github.com/${GITHUB_REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}&labels=shortlink`;

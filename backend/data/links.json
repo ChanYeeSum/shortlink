@@ -1,3 +1,18 @@
 {
-  "links": []
+  "links": [
+    {
+      "id": 2,
+      "short_code": "ZSJ9OP",
+      "original_url": "https://chanyeesum.github.io/festival-greetings/?d=eyJsIjoiemgiLCJuIjoi5pyL5Y-LIiwiZiI6IuaWsOW5tOW_q-S5kCIsIm0iOiLmlrDnmoTkuIDlubTmhL_kvaDlv4Pmg7PkuovmiJDvvIzkuIfkuovog5zmhI_jgIIiLCJmciI6IumZiOWQjOWtpiIsImQiOjcsInMiOjcsImMiOjEsInciOjEsInAiOjAsImUiOjEsInNoIjpbInNwaGVyZSIsImNocnlzYW50aGVtdW0iLCJyaW5nIiwiZG91YmxlIiwid2lsbG93Iiwic2NhdHRlciIsImhlYXJ0IiwiZG91YmxlQnVyc3QiLCJzdGFyIl0sImIiOlsibm9ybWFsIiwic3BhcmtsZSIsInRyYWlsIl0sIm8iOiJ2aWV3In0",
+      "created_at": "2026-03-04T12:54:42.447Z",
+      "clicks": 1
+    },
+    {
+      "id": 1,
+      "short_code": "7roWxx",
+      "original_url": "https://chanyeesum.github.io/festival-greetings/?d=eyJwIjowLCJsIjoiemgiLCJuIjoi5byg5LiJIiwiZiI6IuaWsOW5tOiKseWuieaYjSIsImZyIjoi5LyB5aSIIiwiZCI6NSwicyI6NSwiYyI6MSwidyI6MSwibyI6InZpZXcifQ",
+      "created_at": "2026-03-04T12:49:12.739Z",
+      "clicks": 1
+    }
+  ]
 }

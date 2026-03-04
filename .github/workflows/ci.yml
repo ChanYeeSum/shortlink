@@ -5,147 +5,129 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  issues:
+    types: [ opened, edited ]
   workflow_dispatch:
-  schedule:
-    # 每小时同步一次数据（可选）
-    - cron: '0 * * * *'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  test:
+  # 处理 Issue - 自动添加短链接
+  process-issue:
     runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'shortlink')
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
       
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run tests
-      run: npm test
-      
-    - name: Health check
+    - name: Parse Issue and Add Link
+      env:
+        ISSUE_BODY: ${{ github.event.issue.body }}
+        ISSUE_TITLE: ${{ github.event.issue.title }}
       run: |
-        node -c backend/server.js
-        echo "✅ Syntax check passed"
-
-  build:
-    runs-on: ubuntu-latest
-    needs: test
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci --production
-      
-    - name: Create deployment package
-      run: |
-        mkdir -p deploy
-        cp -r backend deploy/
-        cp -r frontend deploy/
-        cp package.json deploy/
-        cp package-lock.json deploy/ 2>/dev/null || true
-        cd deploy && npm ci --production
-        
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: shortlink-app
-        path: deploy/
-
-  # 同步数据变更回仓库（可选）
-  sync-data:
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' || github.event_name == 'schedule'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Download artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: shortlink-app
-        path: deploy/
-        
-    - name: Check for data changes
-      id: check_changes
-      run: |
-        if [ -f "deploy/backend/data/links.json" ]; then
-          cp deploy/backend/data/links.json backend/data/links.json
-          if git diff --quiet backend/data/links.json; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          fi
-        else
-          echo "has_changes=false" >> $GITHUB_OUTPUT
+        # 提取短链接代码
+        CODE=$(echo "$ISSUE_BODY" | grep -oP '\*\*短链接代码\*\*:\s*`\K[^`]+' || echo "")
+        if [ -z "$CODE" ]; then
+          CODE=$(echo "$ISSUE_TITLE" | grep -oP '\[ShortLink\] 添加短链接:\s*\K.+' | xargs || echo "")
         fi
         
-    - name: Commit data changes
-      if: steps.check_changes.outputs.has_changes == 'true'
+        # 提取原始链接
+        URL=$(echo "$ISSUE_BODY" | grep -oP '\*\*原始链接\*\*:\s*\K.+' | xargs || echo "")
+        
+        if [ -z "$CODE" ] || [ -z "$URL" ]; then
+          echo "无法解析短链接代码或URL"
+          exit 1
+        fi
+        
+        echo "短链接代码: $CODE"
+        echo "原始链接: $URL"
+        
+        # 更新 links.json
+        cd docs/data
+        node -e "
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('links.json', 'utf-8'));
+          
+          // 检查是否已存在
+          if (data.links.find(l => l.code === '$CODE')) {
+            console.log('短链接已存在');
+            process.exit(0);
+          }
+          
+          data.links.unshift({
+            code: '$CODE',
+            url: '$URL',
+            created_at: new Date().toISOString()
+          });
+          
+          fs.writeFileSync('links.json', JSON.stringify(data, null, 2));
+          console.log('短链接添加成功');
+        "
+        
+    - name: Commit changes
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git add backend/data/links.json
-        git commit -m "chore: update links data [skip ci]"
+        git add docs/data/links.json
+        git diff --quiet && git diff --staged --quiet || git commit -m "docs: add shortlink from issue #${{ github.event.issue.number }}"
         git push
         
-    - name: Summary
-      run: |
-        echo "## 📊 Data Sync" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        if [ "${{ steps.check_changes.outputs.has_changes }}" == "true" ]; then
-          echo "✅ Data changes committed to repository" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "ℹ️ No data changes to commit" >> $GITHUB_STEP_SUMMARY
-        fi
+    - name: Close Issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.update({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            state: 'closed'
+          });
+          github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: '✅ 短链接已添加！请等待 GitHub Pages 部署完成后访问。'
+          });
 
+  # 部署到 GitHub Pages
   deploy:
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v4
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        name: shortlink-app
-        path: deploy/
+        path: 'docs'
         
-    - name: Deploy summary
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+      
+    - name: Summary
       run: |
-        echo "## 🚀 Deployment Ready!" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 部署成功！" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "The application is ready for deployment." >> $GITHUB_STEP_SUMMARY
+        echo "访问地址: https://chanyeesum.github.io/shortlink/" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Files prepared:" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        find deploy -type f | head -20 >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### To deploy manually:" >> $GITHUB_STEP_SUMMARY
-        echo "1. Download the artifact from this workflow run" >> $GITHUB_STEP_SUMMARY
-        echo "2. Upload to your server" >> $GITHUB_STEP_SUMMARY
-        echo "3. Run: \`npm start\`" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Data Persistence:" >> $GITHUB_STEP_SUMMARY
-        echo "- Data stored in: \`backend/data/links.json\`" >> $GITHUB_STEP_SUMMARY
-        echo "- Data is committed to repository automatically" >> $GITHUB_STEP_SUMMARY
+        echo "### 使用方法：" >> $GITHUB_STEP_SUMMARY
+        echo "1. 访问首页，填写表单创建短链接" >> $GITHUB_STEP_SUMMARY
+        echo "2. 点击生成的 Issue 链接确认" >> $GITHUB_STEP_SUMMARY
+        echo "3. 等待自动部署完成即可使用" >> $GITHUB_STEP_SUMMARY

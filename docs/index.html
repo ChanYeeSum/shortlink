@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>短链接服务 | ShortLink</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔗 ShortLink</h1>
+      <p>简单、快速的短链接服务（静态版）</p>
+    </header>
+
+    <main>
+      <div class="card">
+        <h2>添加短链接</h2>
+        <p class="hint">通过提交 Issue 自动创建短链接</p>
+        <form id="shortenForm">
+          <div class="form-group">
+            <label for="urlInput">原始链接 URL</label>
+            <input type="url" id="urlInput" placeholder="https://example.com/very/long/url" required>
+          </div>
+          <div class="form-group">
+            <label for="codeInput">短链接代码（可选，留空自动生成）</label>
+            <input type="text" id="codeInput" placeholder="mylink" pattern="[a-zA-Z0-9-_]+">
+          </div>
+          <button type="submit" class="btn-primary">创建短链接</button>
+        </form>
+        <div id="result" class="result hidden">
+          <p>✅ 请在 GitHub Issue 中确认创建</p>
+          <a id="issueLink" href="#" target="_blank" class="btn-link">打开 Issue 页面</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>📊 所有链接</h2>
+        <div id="linksContainer">
+          <p class="loading">加载中...</p>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>Powered by GitHub Pages | <a href="https://github.com/ChanYeeSum/shortlink" target="_blank">GitHub</a></p>
+    </footer>
+  </div>
+
+  <script>
+    const GITHUB_REPO = 'ChanYeeSum/shortlink';
+    const BASE_URL = `https://${GITHUB_REPO.split('/')[0].toLowerCase()}.github.io/${GITHUB_REPO.split('/')[1]}`;
+    
+    // 加载链接数据
+    async function loadLinks() {
+      try {
+        const response = await fetch('data/links.json?t=' + Date.now());
+        const data = await response.json();
+        renderLinks(data.links || []);
+      } catch (err) {
+        document.getElementById('linksContainer').innerHTML = 
+          '<p class="error">加载失败，请刷新重试</p>';
+      }
+    }
+    
+    // 渲染链接列表
+    function renderLinks(links) {
+      const container = document.getElementById('linksContainer');
+      
+      if (links.length === 0) {
+        container.innerHTML = '<p class="empty">暂无链接</p>';
+        return;
+      }
+      
+      const html = `
+        <table>
+          <thead>
+            <tr>
+              <th>短链接</th>
+              <th>原始链接</th>
+              <th>创建时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${links.map(link => `
+              <tr>
+                <td><a href="${BASE_URL}/${link.code}" target="_blank">/${link.code}</a></td>
+                <td><a href="${link.url}" target="_blank" title="${link.url}">${truncate(link.url, 40)}</a></td>
+                <td>${formatDate(link.created_at)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      
+      container.innerHTML = html;
+    }
+    
+    // 截断URL
+    function truncate(str, maxLen) {
+      if (str.length <= maxLen) return str;
+      return str.substring(0, maxLen) + '...';
+    }
+    
+    // 格式化日期
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('zh-CN');
+    }
+    
+    // 生成短码
+    function generateCode() {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+    
+    // 表单提交 - 创建 Issue
+    document.getElementById('shortenForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const url = document.getElementById('urlInput').value.trim();
+      let code = document.getElementById('codeInput').value.trim();
+      
+      if (!code) {
+        code = generateCode();
+      }
+      
+      // 创建 Issue 标题和内容
+      const title = `[ShortLink] 添加短链接: ${code}`;
+      const body = `**短链接代码**: \`${code}\`\n**原始链接**: ${url}\n\n---\n此 Issue 将由 GitHub Actions 自动处理并关闭。`;
+      
+      // 构建 Issue URL
+      const issueUrl = `https://github.com/${GITHUB_REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}&labels=shortlink`;
+      
+      // 显示结果
+      document.getElementById('result').classList.remove('hidden');
+      document.getElementById('issueLink').href = issueUrl;
+    });
+    
+    // 初始化
+    loadLinks();
+  </script>
+</body>
+</html>

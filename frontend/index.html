@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>短链接服务 | ShortLink</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔗 ShortLink</h1>
+      <p>简单、快速的短链接生成服务</p>
+    </header>
+
+    <main>
+      <div class="card">
+        <h2>创建短链接</h2>
+        <form id="shortenForm">
+          <div class="input-group">
+            <input 
+              type="url" 
+              id="urlInput" 
+              placeholder="输入长链接 URL..." 
+              required
+              autocomplete="off"
+            >
+            <button type="submit" id="submitBtn">生成短链接</button>
+          </div>
+        </form>
+        <div id="result" class="result hidden">
+          <div class="result-content">
+            <label>短链接：</label>
+            <div class="short-url">
+              <a id="shortUrlLink" href="#" target="_blank"></a>
+              <button id="copyBtn" title="复制链接">📋</button>
+            </div>
+          </div>
+        </div>
+        <div id="error" class="error hidden"></div>
+      </div>
+
+      <div class="card">
+        <h2>📊 最近链接</h2>
+        <div id="statsContainer">
+          <p class="loading">加载中...</p>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>Powered by Node.js & GitHub Actions</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

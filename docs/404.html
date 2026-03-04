@@ -57,6 +57,16 @@
     const GITHUB_REPO = 'ChanYeeSum/shortlink';
     const BASE_URL = `https://${GITHUB_REPO.split('/')[0].toLowerCase()}.github.io/${GITHUB_REPO.split('/')[1]}`;
     
+    // Base64 解码
+    function decodeUrl(base64) {
+      try {
+        return decodeURIComponent(atob(base64));
+      } catch (e) {
+        // 如果不是 Base64，返回原值（兼容旧数据）
+        return base64;
+      }
+    }
+    
     async function redirect() {
       // 获取当前路径
       const path = window.location.pathname;
@@ -84,8 +94,9 @@
         const link = data.links.find(l => l.code === code);
         
         if (link) {
-          // 跳转到原始链接
-          window.location.href = link.url;
+          // 解码并跳转到原始链接
+          const originalUrl = decodeUrl(link.url);
+          window.location.href = originalUrl;
         } else {
           showError(`短链接 /${code} 不存在`);
         }

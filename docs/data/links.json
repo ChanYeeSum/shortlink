@@ -2,13 +2,7 @@
   "links": [
     {
       "code": "example",
-      "url": "https://github.com/ChanYeeSum/shortlink",
-      "created_at": "2026-03-04T00:00:00.000Z",
-      "private": false
-    },
-    {
-      "code": "secret",
-      "url": "https://example.com/private-link",
+      "url": "aHR0cHMlM0ElMkYlMkZnaXRodWIuY29tJTJGQ2hhblllZVN1bSUyRnNob3J0bGluaw==",
       "created_at": "2026-03-04T00:00:00.000Z",
       "private": true
     }
